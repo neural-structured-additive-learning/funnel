@@ -1,2 +1,2 @@
 # funnel
-FUNctional NEural Learning
+functional neural learning
