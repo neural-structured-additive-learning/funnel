@@ -9,10 +9,13 @@ def kroneckersumpen_array(W, P1, P2):
     # vec(W)^\top (I__2 \otimes P_1) vec(W) = vec(W \circle (P_1 W))^\top 1
     # vec(W)^\top (P_2 \otimes I_1) vec(W) = vec((W P_2) \circle W)^\top 1
     # W = tf.cast(W, dtype="float32")
-    return(
-        tf.reduce_sum(tf.multiply(W, tf.matmul(P1, W))) + 
-        tf.reduce_sum(tf.multiply(tf.matmul(W, P2), W))
-        )
+    if P1 is None:
+        return(tf.reduce_sum(tf.multiply(tf.matmul(W, P2), W)))
+    else:
+        return(
+            tf.reduce_sum(tf.multiply(W, tf.matmul(P1, W))) + 
+            tf.reduce_sum(tf.multiply(tf.matmul(W, P2), W))
+            )
 
 class LinearArrayPenalty(regularizers.Regularizer):
 
@@ -51,4 +54,25 @@ class LinearArray(keras.layers.Layer):
     def call(self, inputs):
         return tf.matmul(tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.B1), self.w), self.B2, transpose_b = True)
         
+class LinearArraySimple(keras.layers.Layer):
+    def __init__(self, units, B2, P1=None, P2=None, **kwargs):
+        super(LinearArraySimple, self).__init__(**kwargs)
+        self.units = units
+        self.B2 = tf.cast(B2, dtype="float32")
+        self.P1 = P1
+        if self.P1 is not None:
+            self.P1 = tf.cast(self.P1, dtype="float32")
+        self.P2 = tf.cast(P2, dtype="float32")
 
+    def build(self, input_shape):
+        self.w = self.add_weight(
+            shape = self.units,
+            initializer="random_normal",
+            regularizer=LinearArrayPenalty(self.P1, self.P2),
+            trainable=True,
+            dtype="float32"
+        )
+
+    def call(self, inputs):
+        return tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.w), self.B2, transpose_b = True)
+        
