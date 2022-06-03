@@ -1,0 +1,17 @@
+Package: funnel
+Title: Functional Neural Learning
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "David",
+           family = "Ruegamer",
+           role = c("aut", "cre"),
+           email = "david.ruegamer@gmail.com")
+Description: Fit functional regression models (scalar-on-function,
+    function-on-scalar, function-on-function) using neural network software
+    to allow to favorably scale with large dimensions.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
