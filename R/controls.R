@@ -3,6 +3,12 @@
 #' @param dimy the dimension of the outcome
 #' @param ind_fun tf function applied to distribution
 #' @param weight_fun function; calculates integration weights given time info
+#' @param constraint_s,constraint_t whether the smooth terms in s and t-direction
+#' are supposed to be sum-to-zero constrained 
+#' (default is FALSE for t and TRUE for s; 
+#' see Brockhaus et al., Functional Linear Array Model, Appendix A)
+#' @param normalization_integral function that scales the integral 
+#' over s for functional covariates
 #' 
 fun_controls <- function(
   dimy,
@@ -11,7 +17,10 @@ fun_controls <- function(
   time_domain = function(time) range(time),
   whole_domain = function(time) sort(unique(time)),
   weight_fun_s = trapez_weights,
-  weight_fun_t = trapez_weights
+  weight_fun_t = trapez_weights,
+  normalization_integral = function(x) 1/diff(range(x)),
+  constraint_s = TRUE,
+  constraint_t = FALSE
 )
 {
   
@@ -21,7 +30,10 @@ fun_controls <- function(
          time_domain = time_domain,
          whole_domain = whole_domain,
          weight_fun_s = weight_fun_s,
-         weight_fun_t = weight_fun_t
+         weight_fun_t = weight_fun_t,
+         normalization_integral = normalization_integral,
+         constraint_s = constraint_s,
+         constraint_t = constraint_t
          )
   )
   

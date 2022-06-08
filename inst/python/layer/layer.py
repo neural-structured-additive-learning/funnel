@@ -45,14 +45,14 @@ class LinearArray(keras.layers.Layer):
     def build(self, input_shape):
         self.w = self.add_weight(
             shape = self.units,
-            initializer="random_normal",
+            initializer="zeros", #tf.random_normal_initializer(),
             regularizer=LinearArrayPenalty(self.P1, self.P2),
             trainable=True,
             dtype="float32"
         )
 
-    def call(self, inputs):
-        return tf.matmul(tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.B1), self.w), self.B2, transpose_b = True)
+    def call(self, input):
+        return tf.matmul(tf.matmul(tf.matmul(tf.cast(input, dtype="float32"), self.B1), self.w), self.B2, transpose_b = True)
         
 class LinearArraySimple(keras.layers.Layer):
     def __init__(self, units, B2, P1=None, P2=None, **kwargs):
@@ -67,7 +67,7 @@ class LinearArraySimple(keras.layers.Layer):
     def build(self, input_shape):
         self.w = self.add_weight(
             shape = self.units,
-            initializer="random_normal",
+            initializer="zeros", #tf.random_normal_initializer(),
             regularizer=LinearArrayPenalty(self.P1, self.P2),
             trainable=True,
             dtype="float32"

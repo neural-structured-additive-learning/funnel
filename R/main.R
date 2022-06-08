@@ -47,7 +47,7 @@ from_dist_to_mat_loss <- function(
   
   loss_fun <- function(logprob){
     return(- tf$divide(tf$matmul(logprob, time_tensor), 
-                       ncol(time_tensor)))
+                       nrow(time_tensor)))
                        # time_tensor$shape[[1]]))
   }
   

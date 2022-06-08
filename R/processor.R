@@ -42,8 +42,8 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
   name <- makelayername(term, param_nr)
   processor_name <- get_processor_name(term)
   form_s <- form_t <- NULL
-  if(grepl("form_s", term)) form_s <- gsub(".*form_s\\s?=\\s?~\\s?(.*?)(\\,.*|\\))", "\\1", term)
-  if(grepl("form_t", term)) form_t <- gsub(".*form_t\\s?=\\s?~\\s?(.*?)(\\,.*|\\))", "\\1", term)
+  if(grepl("form_s", term)) form_s <- gsub(".*form_s\\s?=\\s?~\\s?(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
+  if(grepl("form_t", term)) form_t <- gsub(".*form_t\\s?=\\s?~\\s?(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
   term <- gsub("fof\\((.*?)\\,.*)\\)","\\1",term)
   
   # For FOFR: 
@@ -72,18 +72,19 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     ncolNum_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="input_dim")
     
     # integration weights s direction
-    intWeights <- controls$weight_fun_s(data[[extractvar(form_s)]])
+    intWeights <- controls$weight_fun_s(data[[extractvar(form_s)]]) * 
+      controls$normalization_integral(data[[extractvar(form_s)]])
     # spline bases
-    B_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights
+    B_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()
     
     # data trafo linear part
     data_trafo_x <- function(indata = data) return(indata[[term]])
     
     data_trafo = function() #list(
-      data_trafo_x()# %*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights), 
+      intWeights*data_trafo_x() # %*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights), 
     #get_gamdata(form_t, param_nr, controls$gamdata, what="data_trafo")())
     predict_trafo = function(newdata) #list(
-      data_trafo_x(newdata) #%*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights),
+      intWeights*data_trafo_x(newdata) #%*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights),
     #get_gamdata(form_t, param_nr, controls$gamdata, what="data_trafo")())
     
     unitsPH <- NULL
@@ -154,7 +155,7 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     partial_effect = function(weights, newdata = NULL){
       X <- if(is.null(newdata)) data_trafo() else
         predict_trafo(newdata)
-      lhs <- if(is.null(form_s)) X else (X%*%B_s)
+      lhs <- if(is.null(form_s)) X else (intWeights*X)%*%B_s
       return(lhs%*%weights%*%t(B_t))
     },
     # plot_fun = function(self, weights, grid_length) gam_plot_data(self, weights, grid_length,
