@@ -45,10 +45,16 @@ from_dist_to_mat_loss <- function(
   time_tensor
 ){
   
+  # loss_fun <- function(logprob){
+  #   return(
+  #     -tf$multiply(logprob, tf$cast(tf$transpose(time_tensor), "float32"))
+  #   )
+  # }
+  
   loss_fun <- function(logprob){
-    return(- tf$divide(tf$matmul(logprob, time_tensor), 
-                       nrow(time_tensor)))
-                       # time_tensor$shape[[1]]))
+    return( #-tf$divide(
+      -tf$matmul(logprob, time_tensor)
+    )
   }
   
   # the negative log-likelihood is given by the negative weighted
@@ -79,8 +85,9 @@ from_dist_to_mat_loss <- function(
 #' how to model the functional domain of the outcome / features. 
 #' If \code{time_formula_outcome} is NULL, a scalar response model is assumed.
 #' If \code{time_formula_features} is NULL, a smooth term \code{mgcv::s()} is used.
-#' @param time_variable_outcome,time_variable_features 
-#' named list or data.frame for the variables in the \code{time_formula_outcome} 
+#' @param time_variable_outcome vector with time points for response time points
+#' @param time_variable_features either vector with time points as \code{time_variable_outcome},
+#' named list or data.frame
 #' and \code{time_formula_features}.
 #' @param ... passed to \code{deepregression}
 #' 
@@ -94,10 +101,16 @@ funnel <- function(y,
                    auto_convert_formulas = TRUE,
                    family = "normal",
                    time_variable_outcome = NULL,
-                   fun_options = fun_controls(dimy = NCOL(y)),
+                   time_variable_feature = time_variable_outcome,
+                   name_outcome_time = "time", 
+                   name_feature_time = "time",
+                   fun_options = fun_controls(),
                    ...
                    )
 {
+  
+  
+  fun_options$dimy <- NCOL(y)
   
   if(NCOL(y)==2){
     
@@ -126,7 +139,10 @@ funnel <- function(y,
     
     if(auto_convert_formulas)
       list_of_formulas <- convert_lof_to_loff(list_of_formulas, 
-                                              type = "matrix")
+                                              formula_outcome_time = name_outcome_time,
+                                              formula_feature_time = name_feature_time,
+                                              type = "matrix",
+                                              controls = fun_options)
     
   }else if(NCOL(y)==1){
     
@@ -142,7 +158,10 @@ funnel <- function(y,
   
   additional_processors <- list(fof = fof_processor)
   
-  fun_options <- c(fun_options, list(time_t = time_variable_outcome))
+  fun_options <- c(fun_options, list(time_t = time_variable_outcome,
+                                     fundata = precalc_fun(list_of_formulas, data, 
+                                                           fun_options$penalty_options_funpart)
+                                     ))
   
   attr(additional_processors, "controls") <- fun_options
 
@@ -152,10 +171,59 @@ funnel <- function(y,
                         list_of_formulas = list_of_formulas,
                         additional_processors = 
                           additional_processors,
-                        output_dim = NCOL(y))
+                        output_dim = fun_options$dimy,
+                        ...)
   
   class(ret) <- c("funnel", "deepregression")
   
   return(ret)
+  
+}
+
+fun_plot_data <- function(pp, weights, grid_length, pe_fun){
+  
+  org_values <- pp$get_org_values()
+  
+  if(length(org_values)==1){
+    
+    BX <- pp$data_trafo()
+    
+    plotData <-
+      list(org_feature_name = pp$term,
+           value = org_values[[1]],
+           design_mat = BX,
+           coef = weights,
+           partial_effect = pe_fun(pp, df=org_values, weights))
+    
+  }else if(length(org_values)==2){
+    
+    BX <- pp$data_trafo()
+    
+    plotData <-
+      list(org_feature_name = pp$term,
+           value = do.call("cbind", org_values),
+           design_mat = BX,
+           coef = weights,
+           x = org_values[[1]],
+           y = org_values[[2]],
+           df = org_values,
+           partial_effect = matrix(c(
+             # stack to make it work with plot.deepregression
+             pe_fun(pp, org_values, weights)
+             ),ncol=1)
+      )
+    
+    if(is.factor(org_values[[2]])){
+      plotData$y <- unique(plotData$y)
+    }
+    
+  }else{
+    
+    warning("Plot for more than 2 dimensions not implemented yet.")
+    
+  }
+  
+  return(plotData)
+  
   
 }

@@ -1,6 +1,5 @@
 #' Controls for funnel
 #' 
-#' @param dimy the dimension of the outcome
 #' @param ind_fun tf function applied to distribution
 #' @param weight_fun function; calculates integration weights given time info
 #' @param constraint_s,constraint_t whether the smooth terms in s and t-direction
@@ -11,16 +10,32 @@
 #' over s for functional covariates
 #' 
 fun_controls <- function(
-  dimy,
   ind_fun = function(x) tfd_independent(x),
-  weight_fun = if(dimy>2) fixed_weightfun else trapezfun,
+  weight_fun = fixed_weightfun,
   time_domain = function(time) range(time),
   whole_domain = function(time) sort(unique(time)),
   weight_fun_s = trapez_weights,
   weight_fun_t = trapez_weights,
   normalization_integral = function(x) 1/diff(range(x)),
   constraint_s = TRUE,
-  constraint_t = FALSE
+  constraint_t = FALSE,
+  k_t = 5,
+  k_s = 5,
+  bs_t = "'ps'",
+  bs_s = "'ps'",
+  df_t = 5,
+  df_s = 5,
+  m_t = "c(2, 1)",
+  m_s = "c(2, 1)",
+  intercept_k = 20,
+  intercept_bs = "'ps'",
+  intercept_m = "c(2, 1)",
+  functional_intercept = 
+    function(time) paste0("fof(1, form_t = ~FUNs(", 
+                          time, ", zerocons = TRUE, k=", intercept_k,
+                          ", bs=", intercept_bs, 
+                          ", m = ", intercept_m, "))"),
+  penalty_options_funpart = penalty_control()
 )
 {
   
@@ -33,7 +48,17 @@ fun_controls <- function(
          weight_fun_t = weight_fun_t,
          normalization_integral = normalization_integral,
          constraint_s = constraint_s,
-         constraint_t = constraint_t
+         constraint_t = constraint_t,
+         k_t = k_t,
+         k_s = k_s,
+         bs_t = bs_t,
+         bs_s = bs_s,
+         df_t = df_t,
+         df_s = df_s,
+         m_t = m_t,
+         m_s = m_s,
+         functional_intercept = functional_intercept,
+         penalty_options_funpart = penalty_options_funpart
          )
   )
   

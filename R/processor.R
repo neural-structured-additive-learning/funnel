@@ -42,8 +42,10 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
   name <- makelayername(term, param_nr)
   processor_name <- get_processor_name(term)
   form_s <- form_t <- NULL
-  if(grepl("form_s", term)) form_s <- gsub(".*form_s\\s?=\\s?~\\s?(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
-  if(grepl("form_t", term)) form_t <- gsub(".*form_t\\s?=\\s?~\\s?(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
+  if(grepl("form_s", term)) form_s <- 
+    gsub(".*form_s\\s?=\\s?~\\s?FUN(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
+  if(grepl("form_t", term)) form_t <- 
+    gsub(".*form_t\\s?=\\s?~\\s?FUN(s\\(.*?\\))(\\,.*|\\))", "\\1", term)
   term <- gsub("fof\\((.*?)\\,.*)\\)","\\1",term)
   
   # For FOFR: 
@@ -66,34 +68,34 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
   
   # penalties
   if(!is.null(form_s)){
-    sp_and_S_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="sp_and_S")
+    sp_and_S_s <- get_gamdata(form_s, param_nr, controls$fundata, what="sp_and_S")
     P_s <- sp_and_S_s[[1]][[1]] * sp_and_S_s[[2]][[1]]
     
-    ncolNum_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="input_dim")
+    ncolNum_s <- get_gamdata(form_s, param_nr, controls$fundata, what="input_dim")
     
     # integration weights s direction
     intWeights <- controls$weight_fun_s(data[[extractvar(form_s)]]) * 
       controls$normalization_integral(data[[extractvar(form_s)]])
     # spline bases
-    B_s <- get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()
+    B_s <- tf$constant(
+      get_gamdata(form_s, param_nr, controls$fundata, what="data_trafo")(),
+      dtype = "float32"
+    )
     
     # data trafo linear part
     data_trafo_x <- function(indata = data) return(indata[[term]])
     
     data_trafo = function() #list(
-      intWeights*data_trafo_x() # %*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights), 
-    #get_gamdata(form_t, param_nr, controls$gamdata, what="data_trafo")())
+      sweep(data_trafo_x(), 2, intWeights, FUN = "*") 
     predict_trafo = function(newdata) #list(
-      intWeights*data_trafo_x(newdata) #%*%(get_gamdata(form_s, param_nr, controls$gamdata, what="data_trafo")()*intWeights),
-    #get_gamdata(form_t, param_nr, controls$gamdata, what="data_trafo")())
-    
+      sweep(data_trafo_x(newdata), 2, intWeights, FUN = "*") 
+
     unitsPH <- NULL
     
     get_org_values <- function() data[c(extractvar(form_s), extractvar(form_t))]
-    
+
   }else{
     
-    # TODO: make specials dynamic?
     spec <- get_special(term, specials = names(controls$procs))
     args <- list(data = data, output_dim = output_dim, param_nr = param_nr)
     args$controls <- controls 
@@ -106,10 +108,18 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
       ft <- do.call(procs[[spec]], args)
     }
     
-    data_trafo <- ft$data_trafo
-    predict_trafo <- ft$predict_trafo
+    B_s_temp <- ft$data_trafo()
     
-    get_org_values <- function() data[c(extractvar(form_t))]
+    if(args$term!="1"){
+      Z <- orthog_structured_smooths_Z(B_s_temp, rep(1, nrow(B_s_temp)))
+      data_trafo <- function() ft$data_trafo%*%Z
+      predict_trafo <- function(newdata) ft$predict_trafo%*%Z
+      get_org_values <- function() data[c(extractvar(form_t), term)]
+    }else{
+      data_trafo <- ft$data_trafo
+      predict_trafo <- ft$predict_trafo
+      get_org_values <- function() data[c(extractvar(form_t))]
+    }
     
     B_s <- NULL
     P_s <- NULL
@@ -119,33 +129,47 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
       sp_and_S_x <- get_gamdata(term, param_nr, controls$gamdata, what="sp_and_S")
       P_s <- sp_and_S_x[[1]][[1]] * sp_and_S_x[[2]][[1]]
     }
-        
+    
+  }
+
+  if(!is.null(form_t)){
+    sp_and_S_t <- get_gamdata(form_t, param_nr, controls$fundata, what="sp_and_S")
+    P_t <- sp_and_S_t[[1]][[1]] * sp_and_S_t[[2]][[1]]
+    
+    ncolNum_t <- get_gamdata(form_t, param_nr, controls$fundata, what="input_dim")
+    
+    # spline bases
+    B_t <- tf$constant(
+      get_gamdata(form_t, param_nr, controls$fundata, what="data_trafo")(),
+      dtype = "float32"
+      )
     
   }
   
-  if(!is.null(form_t)){
-    sp_and_S_t <- get_gamdata(form_t, param_nr, controls$gamdata, what="sp_and_S")
-    P_t <- sp_and_S_t[[1]][[1]] * sp_and_S_t[[2]][[1]]
+  
+  pe_fun_array <- function(pp, df, weights){
     
-    ncolNum_t <- get_gamdata(form_t, param_nr, controls$gamdata, what="input_dim")
-    
-    # spline bases
-    B_t <- get_gamdata(form_t, param_nr, controls$gamdata, what="data_trafo")()
+    if(!is.null(form_s)){
+      
+      return(as.matrix(B_s)%*%weights%*%t(as.matrix(B_t)))
+      
+    }else{
+      
+      if(grepl("fof\\(1\\,.*\\)", pp$term)){ 
+        return(as.matrix(B_t)%*%t(weights)) 
+      }else{      
+        return(weights%*%t(as.matrix(B_t)))
+      }
+    }
   }
+  
   
   if(is.null(form_s)) unitsPH <- c(as.integer(ncol(data_trafo())), as.integer(ncol(B_t)))
   
   # define array layer
-  layer <- linear_array_block(Bs = B_s, Bt = B_t, Ps = P_s, Pt = P_t, units = unitsPH)
-  
-  pe_fun_array <- function(pp, df, weights){
-    
-    pmat <- pp$predict_trafo(df)
-    lhs <- if(is.null(form_s)) pmat else (pmat%*%B_s) 
-    return(lhs%*%weights%*%t(B_t))
+  layer <- linear_array_block(Bs = B_s, Bt = B_t, Ps = P_s, Pt = P_t, units = unitsPH,
+                              name = name)
 
-  }
-  
   list(
     data_trafo = data_trafo,
     predict_trafo = predict_trafo,
@@ -155,11 +179,11 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     partial_effect = function(weights, newdata = NULL){
       X <- if(is.null(newdata)) data_trafo() else
         predict_trafo(newdata)
-      lhs <- if(is.null(form_s)) X else (intWeights*X)%*%B_s
-      return(lhs%*%weights%*%t(B_t))
+      lhs <- if(is.null(form_s)) X else (intWeights*X)%*%as.matrix(B_s)
+      return(lhs%*%weights%*%t(as.matrix(B_t)))
     },
-    # plot_fun = function(self, weights, grid_length) gam_plot_data(self, weights, grid_length,
-                                                                  # pe_fun = pe_fun_array),
+    plot_fun = function(self, weights, grid_length) fun_plot_data(self, weights, grid_length,
+    pe_fun = pe_fun_array),
     get_org_values = get_org_values
   )
 }

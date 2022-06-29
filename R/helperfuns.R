@@ -48,17 +48,40 @@ convert_lof_to_loff <- function(
   list_of_formulas, 
   formula_outcome_time = NULL,
   formula_feature_time = NULL,
-  type = c("scalar", "fun", "matrix")
+  type = c("scalar", "fun", "matrix"),
+  controls
 )
 {
   
   type <- match.arg(type)
   wrapper <- switch (type,
-    scalar = action,
-    fun    = action,
-    matrix = action
+    scalar = function(x) stop("Not implemented yet."),
+    fun    = function(x) stop("Not implemented yet."),
+    matrix = function(x){
+      
+      pred_vars <- suppressWarnings(extractvar(x))
+      if(length(pred_vars)==0) return(~ 0 + const(1))
+      return(
+        as.formula(paste("~ 0 + const(1) +", 
+                         controls$functional_intercept(formula_outcome_time), 
+                         "+", paste("fof(", 
+                         pred_vars, ", form_s = ~FUNs(", formula_feature_time, 
+                         ", zerocons = TRUE, df=", controls$df_s, 
+                         ", k=", controls$k_s, 
+                         ", bs=", controls$bs_s, 
+                         ", m = ", controls$m_s, "),",  
+                         " form_t = ~FUNs(", formula_outcome_time, 
+                         ", zerocons = FALSE, df=", controls$df_t, 
+                         ", k=", controls$k_t, 
+                         ", bs=", controls$bs_t, 
+                         ", m = ", controls$m_t, "))", 
+                   collapse = " + "))
+      ))
+    }
   )
-  
+
+  lapply(list_of_formulas, wrapper)
+    
 }
 
 expand_form <- function(form, wrapper)
@@ -69,5 +92,30 @@ expand_form <- function(form, wrapper)
   vars <- attr(tls, "term.labels")
   fun_part <- paste(sapply(vars, wrapper), collapse = " + ")
   return(as.formula(paste(int, fun_part, sep = " + ")))
+  
+}
+
+precalc_fun <- function(lof, data, so){
+  
+  tfs <- lapply(lof, function(form) terms.formula(form, specials = c("s", "te", "ti")))
+  termstrings <- lapply(tfs, function(tf) trmstrings <- attr(tf, "term.labels"))
+  gam_terms <- lapply(termstrings, function(tf) tf[grepl("~\\FUNs?(s|te|ti)\\(", tf)])
+  gam_terms <- lapply(gam_terms, function(tf){ 
+    if(any(grepl("~", tf))){
+      return(
+        c(tf[!grepl("~", tf)], sapply(tf[grepl("~", tf)], function(x){
+          
+          parts <- strsplit(x, "~")[[1]][-1]
+          bracket_mismatch <- mismatch_brackets(parts, bracket_set = c("\\(", "\\)"))
+          parts[bracket_mismatch] <- gsub("\\)\\)$", ")", parts[bracket_mismatch])
+          return(parts)
+          
+        })) 
+      )
+    }else return(tf)
+  })
+  gam_terms <- lapply(gam_terms, function(gt) as.formula(paste(c("~1", unique(unlist(sapply(gt, function(term) 
+    gsub("FUN(s\\(.*\\)).*", "\\1", term))))), collapse=" + ")))
+  precalc_gam(gam_terms, data, so)
   
 }
