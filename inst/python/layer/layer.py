@@ -17,6 +17,26 @@ def kroneckersumpen_array(W, P1, P2):
             tf.reduce_sum(tf.multiply(tf.matmul(W, P2), W))
             )
 
+# from deepregression
+def vecmatvec(a, B, c=None, sparse_mat = False):
+    if c is None:
+        c = a
+    #return(tf.matmul(tf.transpose(a),tf.linalg.matvec(B, tf.squeeze(c, [1]), a_is_sparse = sparse_mat)))
+    return(tf.keras.backend.sum(tf.keras.backend.batch_dot(a, tf.keras.backend.dot(B, c), axes=1)))
+
+# from deepregression          
+class squaredPenalty(regularizers.Regularizer):
+
+    def __init__(self, P, strength):
+        self.strength = strength
+        self.P = P
+
+    def __call__(self, x):
+        return self.strength * tf.reduce_sum(vecmatvec(x, tf.cast(self.P, dtype="float32"), sparse_mat = True))
+
+    def get_config(self):
+        return {'strength': self.strength, 'P': self.P}
+
 class LinearArrayPenalty(regularizers.Regularizer):
 
     def __init__(self, P1, P2, strength=1):
@@ -75,4 +95,26 @@ class LinearArraySimple(keras.layers.Layer):
 
     def call(self, inputs):
         return tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.w), self.B2, transpose_b = True)
+      
+      
+class SofLayer(keras.layers.Layer):
+    def __init__(self, units, B1, P1=None, **kwargs):
+        super(SofLayer, self).__init__(**kwargs)
+        self.units = units
+        self.B1 = tf.cast(B1, dtype="float32")
+        self.P1 = P1
+        if self.P1 is not None:
+            self.P1 = tf.cast(self.P1, dtype="float32")
+        
+    def build(self, input_shape):
+        self.w = self.add_weight(
+            shape = self.units,
+            initializer="zeros", #tf.random_normal_initializer(),
+            regularizer=squaredPenalty(self.P1, 1),
+            trainable=True,
+            dtype="float32"
+        )
+
+    def call(self, inputs):
+        return tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.B1), self.w)
         

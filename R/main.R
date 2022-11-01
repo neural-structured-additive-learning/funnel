@@ -112,7 +112,7 @@ funnel <- function(y,
   
   fun_options$dimy <- NCOL(y)
   
-  if(NCOL(y)==2){
+  if(NCOL(y)==2 & family != "multinoulli"){
     
     stop("Not implemented yet.")
     lossfun <- from_dist_to_fun_loss(family = family,
@@ -127,7 +127,7 @@ funnel <- function(y,
                                               formula_feature_time = YY,
                                               type = "fun")
     
-  }else if(NCOL(y)>2){
+  }else if(NCOL(y)>2 & family != "multinoulli"){
     
     if(length(time_variable_outcome) != NCOL(y)) 
       stop("time_feature must have same length as #columns of y of matrix outcomes")
@@ -144,19 +144,21 @@ funnel <- function(y,
                                               type = "matrix",
                                               controls = fun_options)
     
-  }else if(NCOL(y)==1){
+  }else if(NCOL(y)==1 | family == "multinoulli"){
     
-    stop("Not implemented yet.")
     fun_outcome <- FALSE
     lossfun <- from_dist_to_loss(family = family,
                                  ind_fun = fun_options$ind_fun) 
     if(auto_convert_formulas)
       list_of_formulas <- convert_lof_to_loff(list_of_formulas, 
-                                              type = "scalar")
+                                              formula_feature_time = name_feature_time,
+                                              type = "scalar",
+                                              controls = fun_options)
     
   }
   
-  additional_processors <- list(fof = fof_processor)
+  additional_processors <- list(fof = fof_processor,
+                                sof = sof_processor)
   
   fun_options <- c(fun_options, list(time_t = time_variable_outcome,
                                      fundata = precalc_fun(list_of_formulas, data, 

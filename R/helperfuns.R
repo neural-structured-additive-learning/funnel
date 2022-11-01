@@ -55,7 +55,22 @@ convert_lof_to_loff <- function(
   
   type <- match.arg(type)
   wrapper <- switch (type,
-    scalar = function(x) stop("Not implemented yet."),
+    scalar = function(x){
+      
+      pred_vars <- suppressWarnings(extractvar(x))
+      if(length(pred_vars)==0) return(~ 1)
+      return(
+        as.formula(paste("~ 1", 
+                         "+", paste("sof(", 
+                                    pred_vars, ", form_s = ~FUNs(", formula_feature_time, 
+                                    ", zerocons = TRUE, df=", controls$df_s, 
+                                    ", k=", controls$k_s, 
+                                    ", bs=", controls$bs_s, 
+                                    ", m = ", controls$m_s, "))", 
+                                    collapse = " + "))
+        ))
+      
+    },
     fun    = function(x) stop("Not implemented yet."),
     matrix = function(x){
       
