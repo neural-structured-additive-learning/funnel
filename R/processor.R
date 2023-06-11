@@ -86,10 +86,13 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     intWeights <- controls$weight_fun_s(data[[extractvar(form_s)]]) * 
       controls$normalization_integral(data[[extractvar(form_s)]])
     # spline bases
-    B_s <- tf$constant(
-      get_gamdata(form_s, param_nr, controls$fundata, what="data_trafo")(),
-      dtype = "float32"
-    )
+    B_s <- get_gamdata(form_s, param_nr, controls$fundata, what="data_trafo")()
+      
+    
+    ### constraint
+    Z <- orthog_structured_smooths_Z(as.matrix(B_s), rep(1, nrow(B_s)))
+    B_s <- tf$constant(B_s %*% Z, dtype = "float32")
+    P_s <- t(Z) %*% P_s %*% Z
     
     # data trafo linear part
     data_trafo_x <- function(indata = data) return(indata[[term]])
@@ -98,11 +101,10 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
       sweep(data_trafo_x(), 2, intWeights, FUN = "*") 
     predict_trafo = function(newdata) #list(
       sweep(data_trafo_x(newdata), 2, intWeights, FUN = "*") 
-
+    get_org_values <- function() data[c(extractvar(form_s), extractvar(form_t), term)]
+    
     unitsPH <- NULL
     B_t <- NULL
-    
-    get_org_values <- function() data[c(extractvar(form_s), extractvar(form_t))]
 
   }else{
     
@@ -120,17 +122,6 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     
     B_s_temp <- ft$data_trafo()
     
-    if(args$term!="1"){
-      Z <- orthog_structured_smooths_Z(B_s_temp, rep(1, nrow(B_s_temp)))
-      data_trafo <- function() ft$data_trafo%*%Z
-      predict_trafo <- function(newdata) ft$predict_trafo%*%Z
-      get_org_values <- function() data[c(extractvar(form_t), term)]
-    }else{
-      data_trafo <- ft$data_trafo
-      predict_trafo <- ft$predict_trafo
-      get_org_values <- function() data[c(extractvar(form_t))]
-    }
-    
     B_s <- NULL
     P_s <- NULL
 
@@ -140,9 +131,17 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
       P_s <- sp_and_S_x[[1]][[1]] * sp_and_S_x[[2]][[1]]
     }
     
+    data_trafo <- ft$data_trafo
+    predict_trafo <- ft$predict_trafo
+    get_org_values <- if(args$term!="1") 
+      function() data[c(extractvar(form_t), term)] else
+        function() data[c(extractvar(form_t))]
+    
   }
 
   if(!is.null(form_t)){
+    
+    ### B_t part
     sp_and_S_t <- get_gamdata(form_t, param_nr, controls$fundata, what="sp_and_S")
     P_t <- sp_and_S_t[[1]][[1]] * sp_and_S_t[[2]][[1]]
     
@@ -256,6 +255,7 @@ sof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
     B_s_temp <- ft$data_trafo()
     
     if(args$term!="1"){
+      stop("constraint implemented but not neccessary")
       Z <- orthog_structured_smooths_Z(B_s_temp, rep(1, nrow(B_s_temp)))
       data_trafo <- function() ft$data_trafo%*%Z
       predict_trafo <- function(newdata) ft$predict_trafo%*%Z

@@ -73,6 +73,17 @@ class LinearArray(keras.layers.Layer):
 
     def call(self, input):
         return tf.matmul(tf.matmul(tf.matmul(tf.cast(input, dtype="float32"), self.B1), self.w), self.B2, transpose_b = True)
+            
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "B1": self.B1,
+            "B2": self.B2,
+            "P1": self.P1,
+            "P2": self.P2,
+        })
+        return config
+
         
 class LinearArraySimple(keras.layers.Layer):
     def __init__(self, units, B2, P1=None, P2=None, **kwargs):
@@ -95,7 +106,16 @@ class LinearArraySimple(keras.layers.Layer):
 
     def call(self, inputs):
         return tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.w), self.B2, transpose_b = True)
-      
+            
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "B2": self.B2,
+            "units": self.units,
+            "P1": self.P1,
+            "P2": self.P2,
+        })
+        return config      
       
 class SofLayer(keras.layers.Layer):
     def __init__(self, units, B1, P1=None, **kwargs):
@@ -118,3 +138,12 @@ class SofLayer(keras.layers.Layer):
     def call(self, inputs):
         return tf.matmul(tf.matmul(tf.cast(inputs, dtype="float32"), self.B1), self.w)
         
+            
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "B1": self.B1,
+            "units": self.units,
+            "P1": self.P1,
+        })
+        return config

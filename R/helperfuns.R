@@ -33,6 +33,58 @@ trapezfun <- function(t, range){
   
 }
 
+simpson_weights <- function(t, range = NULL){
+  
+  # t should only include unique values
+  # (we do not observe a trajectory at one time point more
+  # than once)
+  stopifnot(sum(duplicated(t))==0)
+  
+  # define default range
+  if(is.null(range)) range <- range(t)
+  integrate_fun(1, length(t), xind = matrix(t, nrow=1, ncol=length(t)))[1,]
+  
+}
+
+integrate_fun <- function(n,
+                          nxgrid, 
+                          xind = matrix(as.vector(1:nxgrid), 
+                                        nrow=n, 
+                                        ncol=nxgrid, 
+                                        byrow=T),
+                          integration = "simpson")
+{
+  
+  # copied from refund:::pffr
+  # credits to Fabian Scheipl
+  switch(integration,
+              "simpson" = {
+                # \int^b_a f(t) dt = (b-a)/gridlength/3 * [f(a) + 4*f(t_1) + 2*f(t_2) + 4*f(t_3) +
+                # 2*f(t_3) +...+ f(b)]
+                ((xind[,nxgrid]-xind[,1])/nxgrid)/3 *
+                  matrix(c(1, rep(c(4, 2), length=nxgrid-2), 1), nrow=n, ncol=nxgrid, byrow=T)
+              },
+              "trapezoidal" = {
+                # \int^b_a f(t) dt = .5* sum_i (t_i - t_{i-1}) f(t_i) + f(t_{i-1}) =
+                #	(t_2 - t_1)/2 * f(a=t_1) + sum^{nx-1}_{i=2} ((t_i - t_i-1)/2 + (t_i+1 - t_i)/2) * f(t_i) + 
+                # ... +
+                #			+ (t_nx - t_{nx-1})/2 * f(b=t_n)
+                diffs <- t(apply(xind, 1, diff))
+                .5 * cbind(diffs[,1],
+                           t(apply(diffs, 1, filter, filter=c(1,1)))[,-(nxgrid-1)],
+                           diffs[,(nxgrid-1)])
+              },
+              "riemann" = {
+                # simple quadrature rule:
+                # \int^b_a f(t) dt = sum_i (t_i-t_{i-1})*(f(t_i))
+                diffs <- t(apply(xind, 1, diff))
+                #assume delta(t_0=a, t_1) = avg. delta
+                cbind(rep(mean(diffs),n), diffs)
+              }
+  )
+  
+}
+
 fixed_weightfun <- function(time_feature){
   
   return(

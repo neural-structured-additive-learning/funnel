@@ -174,6 +174,7 @@ funnel <- function(y,
                         additional_processors = 
                           additional_processors,
                         output_dim = fun_options$dimy,
+                        family = family,
                         ...)
   
   class(ret) <- c("funnel", "deepregression")
@@ -222,6 +223,7 @@ fun_plot_data <- function(pp, weights, grid_length, pe_fun){
   }else{
     
     warning("Plot for more than 2 dimensions not implemented yet.")
+    return(NULL)
     
   }
   

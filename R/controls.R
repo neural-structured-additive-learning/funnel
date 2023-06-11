@@ -14,8 +14,8 @@ fun_controls <- function(
   weight_fun = fixed_weightfun,
   time_domain = function(time) range(time),
   whole_domain = function(time) sort(unique(time)),
-  weight_fun_s = trapez_weights,
-  weight_fun_t = trapez_weights,
+  weight_fun_s = simpson_weights,
+  weight_fun_t = simpson_weights,
   normalization_integral = function(x) 1/diff(range(x)),
   constraint_s = TRUE,
   constraint_t = FALSE,
@@ -25,6 +25,7 @@ fun_controls <- function(
   bs_s = "'ps'",
   df_t = 5,
   df_s = 5,
+  df_inter = 10,
   m_t = "c(2, 1)",
   m_s = "c(2, 1)",
   intercept_k = 20,
@@ -33,6 +34,7 @@ fun_controls <- function(
   functional_intercept = 
     function(time) paste0("fof(1, form_t = ~FUNs(", 
                           time, ", zerocons = TRUE, k=", intercept_k,
+                          ", df=", df_inter,
                           ", bs=", intercept_bs, 
                           ", m = ", intercept_m, "))"),
   penalty_options_funpart = penalty_control()
