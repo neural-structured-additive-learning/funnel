@@ -46,7 +46,9 @@ linear_array_block <- function(Bs = NULL, Bt, Ps, Pt, units = NULL, ...){
 
 
 
-fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
+fof_processor <- function(term, data, output_dim = NULL, param_nr, engine = "tf", controls){
+  
+  if(engine != "tf") stop("torch engine not implemented yet.")
   
   name <- makelayername(term, param_nr)
   processor_name <- get_processor_name(term)
@@ -198,7 +200,9 @@ fof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
 }
 
 
-sof_processor <- function(term, data, output_dim = NULL, param_nr, controls){
+sof_processor <- function(term, data, output_dim = NULL, param_nr, engine = "tf", controls){
+  
+  if(engine != "tf") stop("torch engine not implemented yet.")
   
   name <- makelayername(term, param_nr)
   processor_name <- get_processor_name(term)
