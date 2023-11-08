@@ -133,7 +133,7 @@ convert_lof_to_loff <- function(
                          controls$functional_intercept(formula_outcome_time), 
                          "+", paste("fof(", 
                          pred_vars, ", form_s = ~FUNs(", formula_feature_time, 
-                         ", zerocons = TRUE, df=", controls$df_s, 
+                         ", zerocons = FALSE, df=", controls$df_s, 
                          ", k=", controls$k_s, 
                          ", bs=", controls$bs_s, 
                          ", m = ", controls$m_s, "),",  
